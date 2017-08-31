@@ -1,0 +1,634 @@
+Système:
+========
+
+Section mémoire:
+----------------
+
+Idéalement chaque process doit disposer d'une mémoire:
+1. privée
+2. infiniment grande
+3. rapide
+4. non volatile
+5. pas cher
+
+Comme nous n'avons pas cela...
+
+On dispose d'une hiérarchisation de la mémoire
+
+Hiérarchie:
+
+1. Qq méga-octets de mémoire cache volatile, rapide et chère
+2. Qq giga-octets de mémoire de rapidité d'accès à prix moyens (RAM: volatile)
+3. Qq téra-octets de mémoire plus lente et non volatile servant de mémoire de masse.
+
+![memoireType](images/memoireType.png)
+
+REM: La mémoire vive est utilisée pour les instructions et les variables d'un programme. On y accède via des adresses.
+
+Le système d'exploitation a pour rôle de coordonner la manière dont ces différentes mémoires sont utiliséees.
+L'entité du SE qui gère la hiérarchisation de la mémoire s'appelle le **gestionnaire de mémoire**.
+Son rôle est de garder trace de la memoire qui est en cours d'utilisation et de celle qui ne l'est pas, d'allouer cette mémoire aux processus qui en ont besoin et de la libérer quand ils ont terminé leur travail.
+
+Rem: Il y a différents gestionnaires de mémoire (simples -> sophistiqués)
+
+Pas d'abstraction de la mémoire:
+--------------------------------
+
+L'abstraction la plus simple consiste à ne pas faire d'abstraction du tout.
+Au début, les ordinateurs ne disposaient pas d'abstraction de la mémoire.
+Chaque programme voyait tout simplement la mémoire physique
+
+	MOV REGISTER1, 1000
+
+faisait passer simplement passer le contenu de la mémoire 100 dans le registre 1
+
+Le modèle de mémoire présenté au programmeur correspondait simplement à la mémoire physique, qui était un ensemble d'adresses numérotées de 0 à une valeur maximale.
+Chaque adresse désignant une cellule contenant un certain nombre de bits (8 en général).
+
+** Il était alors impossible d'avoir 2 programmes s'exécutant en même temps.**
+Car si un programme écrit une certaine valeur à l'emplacement 2000, on ne peut admettre qu'un autre programme vienne écrire à cet emplacement => les 2 programmes se planteraient immédiatement.
+
+Il est cependant possible d'exécuter simultanément plusieurs programmes...
+
+Relocation statique: (utilisée par IBM 360)
+--------------------
+
+Pour que plusieurs programmes puissent coexister en mémoire que chacun utilise une zone mémoire différente.
+Cela peut se faire grâce à la **relocation statique** qui consiste en l'ajustement des adresses utilisées, par le programme, au chargement.
+Chaque référence à la RAM est corrigée en ajoutant l'adresse de chargement du programme.
+
+Le programme travaille alors avec des adresses réelles que le chargeur aura adapté.
+
+ex: l'adresse 8192 devient 108192 pour le programme chargé en 100000.
+
+La correction d'adresses au chargement, ralentit fortement le chargement des programmes mais qui fonctionne bien.
+
+REM: L'adressage physique direct est encore utilisé dans certaines architectures récentes tel que les cartes à puces, certains systèmes embarqués,...
+
+Abstraction de la mémoire: les espaces d'adressages:
+----------------------------------------------------
+
+Pour pouvoir gérer plusieurs applications en mémoire simultanément, il faut savoir résoudre les problèmes de protection et de réallocation.
+
+L'idéal pour cela est de créer une nouvelle abstraction de la mémoire: **l'espace d'adressage**.
+
+L'espace d'adressage est une sorte de mémoire abstraite d'un programme prêt à l'exécution.
+
+Il correspond à l'ensemble des adresses qu'un processus peut utiliser pour adresser la mémoire. Chaque processus a alors son propre espace d'adressage (indépendant de celui des autres, sauf si on souhaite partager de la mémoire).
+
+Un dispositif Hardware se charge de la traduction au moment de l'exécution de chaque instruction.
+
+C'est la relocation **dynamique**.
+
+Cela consiste à mapper l'espace d'adressage de chaque processus sur une partie différente de la mémoire physique.
+Il faut équiper l'UC de deux registres matériels
+
+1. registres de base => mémorise l'adresse de chargement de base
+2. registre de limite => mémorise l'adresse physique de fin
+
+A chaque accès à la RAM l'adresse est convertie et validée
+
+adresse = adresse + base (traduction)
+adresse < limite (validation)
+
+Swapping(va-et-vient entre le disque et la mémoire) => copie ou bien déplacement ders infos???
+
+infos:
+------
+**compactage de mémoire**: Quand une opération de va et vient (swapping) crée de multiple trou dans la mémoire, il est possible de tous les recombiner en une zone plus grande en déplaçant tous les programmes vers le bas de la mémoire. (1 Go de RAM => environ 5 secondes nécessaires pour compacter toute la mémoire).
+
+**Espace d'accroissement**: allocation de mémoire supllémentaire à un programme à quand celui ci est chargé ou déplacé
+
+Si la taille de la mémoire physique est suffisante à accueilir individuellement la plupart des programmes, elle peut se révéler insuffisante pour accueillir l'ensemble des programmes qui tournent en même temps.
+Deux approches permettent de faire face à ce problème:
+
+1. Swapping (in-out)
+2. mémoire virtuelle ou pagination (un programme ne doit pas résider entièrement en RAM pendans son exécution).
+
+Swapping:
+
+Utilisé car la mémoire de l'ordinateur ne sera pas tjrs suffisante pour garder en RAM (simultanément) tous les programmes en cours d'exécution.
+
+Swapping -> un programme sort de la mémoire au profit d'un autre.
+
+----------
+
+Mémoire virtuelle:
+------------------
+
+Mécanisme d'abstraction de la mémoire.
+
+Mécanisme indispensable intégré dans la plupart des systèmes.
+
+La mémoire virtuelle va être utilisée pour palier à différents type de problèmes
+
+3 problèmes principaux:
+
+1. capacité de mémoire
+2. cohabitation en processus
+3. partage d'informations entre processus
+
+problème 1: Capacité de mémoire:
+
+- cas d'une application dont le besoin de mémoire est supérieur à la capacité de la mémoire physique disponible (obésiciel).
+
+(On devrait considérer qu'à un moment T on n'a pas besoin de l'intégralité des données -> pagination).
+
+- cas où on veut mettre en mémoire plusieurs application:
+L'espace nécessaire pour mettre en mémoire une application peut être suffisant mais pas assez pour toutes les applications dont on a besoin.  
+
+problème2: Cohabitation entre processus
+
+- Si une application a dans son code un accès à une zone mémoire définit; exemple: plage d'adresse entre 0 et 50
+et une autre apllication à également besoin d'une place se trouvant dans la zone mémoire du premier programe => problème.
+
+- Deux programme sont en mémoires et des espaces de mémoires libres se trouvent entre les 2 applications.
+On veut alors lancer une troisième application, il y a suffisement de mémoire libre en RAM mais aucunes des plages libres ne peut suffire individuellement à hérberger le prog.
+
+Problème 3: partage d'informations entre processus
+
+On veut pouvoir empêcher une application (exemple: application malveillante ou bien un bug dans une appli) d'avoir une inssidance sur la mémoire d'une autre application en mémoire. On voudrait que les différents processus soient protégés les uns des autres.
+
+Cependant parfois on voudrait pouvoir partager des données entre différents processus
+
+-----------
+réponse aux problèmes:
+
+Chaque procesus va se voir attribuer par le système d'exploitation une mémoire virtuelle.
+Un processus,plutôt que de manipuler directement de la mémoire physique(accessible via des adresses physique), va avoir sa propre vue de la mémoire qui est une mémoire virtuelle accessible via des adresses virtuelles.
+Le code applicatif ne pourra manipuler que des adresses virtuelles qui sont décorélées de la réalité physique.
+
+**Chaque processus aura donc son propre espace de mémoire virtuelle**
+
+C'est le rôle du système d'exploitation de faire la correspondance entre la vision idéale fournie à chacun des processus et les emplacement physique réels qui sont utilisés pour stocker les informations (en RAM, ou sur un disque de stockage).
+
+Le système d'exploitation va implémenter un système de traduction des adresses virtuelles de chacuns des processus vers les adresses physiques de la machine physique et un système de vérification pour s'assurer qu'un processus n'accède qu'aux informations qui lui appartienent.
+
+Rappel mémoire virtuelle
+
+- chaque processus à son propre espace de mémoire virtuelle
+- chaque processus ne peut voir et manipuler que des adresses virtuelles propres à son espace de mémoire et ces adresses virtuelles sont traduites vers des adresses physiques par le système pour pouvoir manipuler les données qui sont stockées dans la véritable mémoire
+- A un instant t on n'a pas besoin de l'intégralité des données d'un programme, donc, ce dont on n'a pas besoin peut être stocké sur le disque dur et seule les choses utiles à un moment donné seront mises en mémoire.
+
+Plusieurs approche pour implémenter la mémoire virtuelle.
+Pagination (est l'une d'entre elles)
+
+Pagination:
+-----------
+
+Consiste à découper la mémoire, à la fois la mémoire physique et la mémoire virtuelle en unités de taille fixe pour simplifier les algorithmes et les structures de données qui implémentent cette mémoire virtuelle.
+
+Ces unités de taille fixe sont les pages(en générale taille de 4096 octets = 4ko)
+rem: taille pouvant varier de 512 octets à 64ko
+
+Les pages sont des entités formés d'une suite d'adresses contigues.
+**Lorsque qu'un processus démarre, la table des pages est copiée en mémoire**
+
+La relation entre les adresses virtuelles et les adresses de la mémoire physique est indiquée dans la table des pages.
+
+Dans la mémoire physique, ces différents emplacement de taille fixes sont les cadres (ou cadres de page): c'est le contenant de l'information.
+
+Dans la mémoire virtuelle on parle des pages pour désigner le contenu(les infos nécessaires pour l'exécution d'un programmme).
+
+![cadres](images/cadres.png)
+
+Un programme voit donc son espace d'adressage découpé en pages de tailles fixe. Les pages seront chargées en RAM à la demande. La RAM, elle, est découpée en cadres de la taille d'une page.
+rem: une page est un ensemble d'adresse contigues.
+
+Table des pages:
+
+**Table en mémoire indiquant pour chaque page de l'espace d'adressage du programme la présence en RAM (ou non) ainsi que l'emplacement correspondant en RAM (le cadre)**.
+
+La table des pages fait donc la correspondance entre les pages du programme et les cadres en RAM
+
+Un registre contient l'adresse de cette table pour chaque processus. (c'est le registre cr3)
+
+**Une entrée dans la table des page**
+![entreeTablePages](images/tablePages.png)
+
+cache inhibé (1bit) => permet de ne pas bouger la page de la mémoire si il y a des entrées sorties.
+>>A revoir dans tanenbaum
+
+Lors d'une instruction, une adresse virtuelle ne va pas directement sur le bus mémoire mais est envoyé dans une unité de gestion mémoire (MMU: Memory Managment Unit) qui fera correspondre l'adresse virtuelle à une adresse physique.
+
+La mémoire ne sait rien de la MMU, elle interprète simplement la requête qui lui est envoyé avec l'adresse physique qui lui est donnée.
+
+Dans la table des pages, un bit de présence/absence conserve la trace des pages qui se trouvent physiquement en mémoire.
+
+Si un programme essaye de faire appel à une page non présente en mémoire, la MMU remarquera que la page est absente et fait procéder l'UC à un déroutement. Le processeur est alors restitué au SE.
+Ce déroutement est appellé "défaut de page"(page fault).
+
+**Un déroutement est une interruption système**
+
+Le déroutement est réalisé de la manière suivante: le système sélectionne un cadre de page peu utilisé et écrit son contenu sur le disque; il transfère ensuite le contenu de la page qui vient d'être référencée dans le carde de page qui vient d'être libéré, modifie la correspondance et recommence l'instruction déroutée.
+
+Lorsqu'une page n'est pas trouvée => déroutement = défaut de page
+
+Et ce défaut de page provoque une exception...
+
+**Lors d'un déroutement, l'UC (unité centrale) redonne la main au système.**
+
+Cette exception est gérée par le système qui va devoir:
+
+1. choisir une victime (page peu utlisée qu'il faudra supprimer de la RAM)
+	après la suppression il faut indiquer que la page virtuelle est inutilisée pour permettre un accès.
+2. charger la nouvelle page référencée, à la place de la victime
+3. mettre à jour la table des pages
+	indiqué la correspondance entre l'adresse virtuelle et le cadre de page correspondant.
+4. recommencer l'instruction interrompue
+
+REM: L'adresse disque qui permet d'avoir la page quand elle n'est pas en mémoire de fait pas partie de la table des pages. Les informations nécessaires au système d'exploitation pour traiter les défauts de pages sont conservées dans une table logicielle à l'intérieur du système d'exploitation(le matériel n'en a pas besoin).
+
+**TLB**
+
+La table des pages étant située en mémoire, il faudrait 2 accès mémoire par demande du processeur.
+
+La solution est de conserver les entrées les plus souvent utilisées dans une mémoire associative (mémoire cache) **le TLB ou Translation Lookaside Buffer**.
+
+Chaque adresse virtuelle issue du processeur est dabord cherchée dans le TLB; si une correspondance existe l'entrée du TLB est utilisée sinon une interruption est déclenchée et le TLB sera remis à jour avec l'entrée de la table des pages stockée en mémoire(vue qu'une traduction d'une adresse virtuelle vient d'être utlisée, il est probable qu'elle soit réutilisée "bientôt"). Ensuite l'instruction responsable sera redémarrée.
+
+Un TLB est un cache qui ne détient que des correspondances de tables de pages.
+
+Rappel: c'est le MMU qui génère le défaut de page!!!
+le registre cr3 contient l'adresse de la table des pages...
+
+Important: La gestion du TLB et des erreurs générées par le TLB est entièrement assurée par le matériel de la MMU
+
+**Les TLB sont utilisées pour gérer un accès plus rapide aux pages mais ce n'est pas le seul problème, il faut pouvoir gérer de très grandes mémoires.**
+
+Chaque entrée de TLB est composée de:
+
+1. un bit de validité
+2. un numéro de page virtuelle
+3. un bit de modification (bit M)
+4. deux bits de protection
+5. un numéro de case
+
+rem: Si le numéro de page est présent dans la
+mémoire associative mais le mode d’accès est non conforme, il se produit
+un défaut de protection.
+
+
+Pour gérer de grandes tables des pages =>
+
+Supposons qu’il faille 100 ns pour accéder à la table de pages
+et 20ns pour accéder à la mémoire associative. Si la fraction de références
+mémoire trouvées dans la mémoire associative (taux d’impact) est , le
+temps d’accès moyen est alors :
+	20 s + 100 (1 - s)
+
+1. Les tables de pages multi niveaux
+2. Les tables de pages inversées
+
+Tables des pages à plusieurs niveaux
+------------------------------------
+
+
+![cadres](images/multi.png)
+
+Remplacement de page:
+---------------------
+
+Quand la mémoire physique est pleine, un chargement d'une page ne peut se faire qu'après avoir éliminé une page qui est en mémoire.
+
+Il va falloir choisir la page a évincer.
+La meilleure victime est celle qui provoquera un défaut de page le plus tard possible...
+
+Pour cela plusieurs méthodes de choix
+
+**Algorithme optimal (utopique et purement théorique)**
+
+Chaque page devrait avoir une étiquette indiquant le nombre d'instructions qui seront exécutées avant que cette page ne soit référencée.
+
+L'algorithme de page optimal dit que c'est la page dont l'étiquette est la plus grande qui sera évincée.
+
+Biensur il est impossible d'avoir cette information. cet algorithme ne peut donc être implémenté mais bcp d'algo vont être inspiré de cette situation qui serait idéale.
+
+**Le hasard** => rapide mais la page retirée pourrait être redemandée rapidement, risque de défauts de pages trop grand. Il y a de meilleurs techniques!!!!
+
+La meilleure page à éliminer sera celle qui sera redemandée après le plus grand nombre d'instructions exécutées.
+Il est cependant impossible d'identifier cette page.
+
+On peut se dire q'une page peu utilisée ou qui n'a plus été utilisée depuis longtemps ne sera probablement pas utilisée rapidement.
+
+Utilisations des bits R et M
+----------------------------
+
+bit R => récemment référencé
+bit M => modifiée
+
+R: référencée depuis la dernière interruption horloge
+M: modifiée depuis son chargement (il faudra la réecrire sur le disque)
+
+Qui modifie ces bits MMU ou OS?
+
+Tanenbaum:
+
+Pour permettre au SE de collecter des statistiques utiles sur le nombre de pages utilisées et non utilisées, la table des pages comprend 2 bits d'état associé à chaque page.
+Le bit R est mis à 1 à chaque fois que la page est référencée (lue ou écrite) et le bit M est mis à 1 quand la page est réécrite (càd modifiée).
+Ces bits sont contenus dans chaques entrée de la table des pages.
+
+Il est très important de comprendre que ces bits sont mis à jour à chaque référence mémoire, qu'il est donc essentiel que cette mise à jour soit matérielle. Lorsqu'un bit a été mis à 1, il reste à 1 jusqu'à ce que le système d'explotation le remette à 0.
+
+Le bit R est remis à 0 à chaque interruption horloge
+
+rem: une interruption est un arrêt temporaire de l'exécution normale d'un programme par le cpu afin d'exécuter un autre programme.
+
+Quand un processus démarre, ces 2 bits sont mis à 0 par le système d'exploitation
+
+**NRU (Not Recently Used)**
+
+Choisir une page qui n'a pas été récemment référencée
+
+![notRecentlyUsed](images/NRU.png)
+
+L'algorithme choisit au hasard une page dans la classe de plus petite valeur. C'est un algorithme simple et les performances sont acceptables.
+
+Plus précisément:
+
+Lorsqu'un défaut de page est généré, le système d'exploitation va analyser toutes les pages et les séparer en 4 catégories basées sur les valeurs courantes de R et M.
+
+classe 0: non référencée, non modifiée
+classe 1: non référencée, modifiée
+classe 2: référencée, non modifiée
+classe 3: référencée, modifiée
+
+L'algorithme du NRU enleverra au hasard une page qui se trouve dans la classe la plus basse non vide.
+
+**REM: Une page modifiée (il y a longtemps) sera choisie plutôt qu'une récemment référencée. Car on considère qu'un une page modifiée non récemment à moins de chance d'être nouvellement référencée qu'une page récemment référencée.**
+
+Quels sont les avantages et les défauts de cette technique?
+
+Avantages:
+Algorithme facile à comprendre
+Relativement simple à implémenter
+Performances suffisantes
+
+Défauts:
+N'est pas optimum
+Notion de hasard malgré tout
+
+Pourquoi R et M sont ils modifiés par hardware et pas par software?
+
+Par Hardware, car ces bits doivent être mis à jour à chaque référence mémoire
+
+Pourquoi remettre R à 0 régulièrement?
+
+Pour indiquer que la page n'a pas été référencée récemment et permettre l'utilisation de cette information pour choisir les pages à invincer. Reset par le système à chaque interruption horloge
+
+Pourquoi ne pas remettre M à zéro aussi?
+
+Car on perdrait l'information comme quoi la page a été modifiée et ne serait pas "sauvées" sur le disque lors d'un évincement.
+
+**FIFO - First In First Out**
+
+A tour de rôle.
+Les plus anciennes pages sont évincées.
+C'est un algorithme simple.
+
+Parcontre les performances sont médiocres!!!!
+
+Car cela finit par évincer des pages importantes....
+
+**FIFO - Seconde Chance Out**
+
+Tient compte de l'utilisation récente de la page.
+
+Si la première a son bit R=1 alors R=0 et est réinjecté en queue
+
+Tous les bits à 1 FIFO pur
+
+Performances acceptables!
+
+**LRU - Least Recently Used**
+
+La victime est la page non utilisée depuis le plus longtemps. C'est un algorithme couteux en temps!!!
+
+Car il faut maintenir une liste triée des pages qui est mise à jour à chaque référence de page...
+
+**LRU - Compteur**
+
+Utilise un registre spécial compteur d'instructions
+
+Le compteur d'instructions (64 bits) est inscrit dans la TP et mis à jour à chaque accès.
+
+LRU est celle avec le plus petit compteur.
+
+REM: il existe une "version"**LRU utilisant une matrice** de taile n x n (n étant le nombre de page
+)
+
+**NFU - Not Frequently Used**
+
+C'est une simulation software de LRU
+
+A chaque interruption horloge on ajoute R à un compteur initialisé à 0
+
+Victime par NFU est celle avec le compteur le plus petit
+
+principe => n'oublie pas le passé (peu utilisé au début et ensuite plus...)
+
+**Aging - amélioration de NFU**
+
+Addition en deux temps
+
+- shift de 1 à droite
+- bit R ajouté à gauche
+
+Victime par Aging est celle avec le compteur le plus petit. Avec un compteur de n bits permet de garder l'historique des n dernières interruptions horloge.
+
+Working Set:
+-----------
+Un nouveau processus est élu : il provoque quelques défauts de pages jusqu’à ce que son ’working set’ soit en mémoire. Un système à temps partagé provoque des échanges de processus et éventuellement, une copie du working set sur le disque. Si le processeur passe son temps à recharger le working set, il y écroulement du système.
+
+Locale ou globale:
+------------------
+Changer de page : la LRU du processus ? de la mémoire ? Il est plus performant de considérer toute la mémoire. Mais combien de page faut il donner à un processus ? Est-ce fixe ? Surveiller le nombre de défaut de page des processus (trop élevé, il ne dispose pas d’assez de mémoire, trop petit, il dispose de trop de mémoire)
+
+Taille des pages:
+-----------------
+
+Trop grande ? perte de place
+Trop petite ? grande table et temps de chargement long En pratique, optimisé pour le transfert avec le disque = 4K.
+
+Entrée/ sortie et pagination:
+----------------------------
+
+E/S avec DMA, le processus 1 lance le transfert DMA dans la page X et est bloqué.
+Processus 2 prend la main et demande une page : si la page X est sélectionnée pour être retirée et son adresse donnée au processus 2, cette page se remplira du transfert DMA !
+(Solutions : soit verrouiller ces pages, soit laisser au S.E. les buffers d’E/S)
+
+Avantages / Inconvénients de la pagination
+------------------------------------------
+
+Avantages :
+
+Meilleure untilisation de la mémoire physique (programmes implantés par fragments, dans des pages non-consécutives).
+Possibilité de ne charger des pages que lorsqu'elles sont référencées (chargement à la demande).
+Indépendance de l'espace virtuel et de la mémoire physique (mémoire virtuelle généralement plus grande).
+Possibilité de ne vider sur disque que des pages modifiées.
+
+Inconvénients :
+
+Fragmentation interne (toutes les pages ne sont pas remplies).
+Impossibilité de lier deux (ou plusieurs) procédures liées aux mêmes adresses dans l'espace virtuel.
+
+
+# La segmentation (intel)
+
+Comme en pagination, l'espage d'adressage physique d'un processus peut être séparé.
+
+### Gestion de la mémoire à deux niveaux:
+
+1. mode réel
+2. mode protégé
+
+### Mode réel
+
+Le __mode réel__ est le seul mode d'adressage des premiers processeurs 8086
+
+- Ce mode d'adressage réel subsiste dans les processeurs actuels et est utilisé au démarrage.
+- Le processeur accède à un Mib de RAM en ce mode.
+- Une adresse est exprimée via deux registres ou immédiats de 16 bits (segments - offset)
+- Ces registres combinés donne une adresse sur 20 bits.
+- Un des registres joue le rôle de registre de base.
+- N'utilise pas de registre limite.
+- AB15:0F34
+
+L'offset sur 16 bits permet d'adresser 64Kib
+
+### adresse physique
+- adresse physique = base * 16 + offset
+- L'adresse AB15: 0F34 devient AB150 + 0F34 = AC084
+- AC084 est l'adresse physique sur 20 bits
+
+Adressage limité à 1 Mib de mémoire physique utilisant deux registres de 16 bits
+
+- la base des segments est une adresse multiple de 16 (2 exp4)
+
+- L'offset de 16 bits permet aux segments une taille de 64 Kib
+- La valeur des registres est quelconque -> tout programme accède à l'entièreté de la mémoire de 1 Mib.
+- Aucun mécanisme de protection
+
+## Mode protégé
+
+- La manière de traduire les adresses différencie les deux modes
+- La traduction d'adresse se fait en plusieurs étapes
+- adresse logique -> adresse linéaire -> adresse physique
+
+La dernière étape est nécessaire si on utilise la pagination
+
+__Le passage au mode protégé se fait en mettant à 1 le bit PE du registre CR0__
+
+__mode protégé (386)__
+
+On part d'une adresse logique
+
+- une adresse logique est composée de 2 parties: sélecteur - offset
+- registres sélecteurs CS, DS, SS ,...
+
+* CS - associé au segment de code
+* DS - associé au segment de données
+* SS - associé au segment de pile
+* ...
+
+##### adresse logique
+Un programme utilise plusieurs segments, leur utilisation est souvent implicite:
+
+- sélecteur de segment: 16 bits (CS, DS,SS,...)
+- Offset dans le segment: 32 bits (offset)
+
+Chaque segment est un espace d'adressage délimité par une base et une limite (taille)
+
+Taille maximum d'un segment: 4 Gib
+
+L'architecture intel prévoit 6 registres sélecteurs de segment
+CS - SS - DS - ES - FS - GS (registres de 16 bits)
+
+Un programmeur peut utiliser plus de segments mais seulement 6 seront disponibles en même temps.
+
+### Descripteur de segment
+
+![descripteur](images/descripteur.png)
+
+La taille et positionn
+- Base - 32 bits (0 - 4 Gib)
+- Limite 20 bits- G - granularité 0-1 (byte - page)
+* 1 Mib
+* 4 Gib
+
+Sans pagination Base est une adresse physique
+
+### Les droits
+
+- DPL - 2 bits (0-3), Descriptor Privilege Level,
+niveau de privilère minimum requis pour l'accès (0 plus haut, 3 plus bas)
+- type - lecture / écriture / exécutable
+
+__SWAP__
+
+* P - présent
+* A - accédé
+
+LDT - GDT
+
+- Les descripteurs de segments (8 bytes chacun) sont rassemblés dans les tables GDT et LDT en RAM.
+- GDT Global Descriptor Table (partagée par tous les process).
+
+Les registres gdtr et idtr contiennent les adresses de ces tables
+
+Adresse linéaire = base + offset
+
+__Trouver la base grâce au séléecteur de segment__
+
+![sélecteurSegment](images/selecteur1.png)
+
+- index - 13 bits
+- TI - 0/1 (GDT/LDT)
+- RPL ou CPL (pour CS) - 2 bits (Requested/Current Privilege Level)
+
+index sur 13 bits -> maximum 2^13 descripteurs de segment par table
+
+__gdtr/Idtr + index * 8__
+
+### adresse logique -> adresse linéaire
+
+![logLin](images/logLin.png)
+
+Si on désactive la pagination, cette adresse correspond à l'adresse physique
+
+### segmentation performance
+
+Le __MMU__ traduit l'addresse, chaque référence à la RAM requiert une lecture.
+
+Principe de localité:
+
+- Diminuer les accès mémoire: mémoriser les derniers descripteurs de segment utilisés (64 bits)
+- Un sélecteur de segment a une partie visible (16 bits) et une partie cachée (8 bytes)
+- Le descripteur est lu uniquement à chaque modification du sélecteur
+
+### Segmentation et pagination sur intel
+
+- Intel combine segmentation et pagination
+- L'adresse de base du segment est une adresse linéaire dans un espace uniquement paginé.
+- Une table des pages (deux niveaux) est associé à chaque segment.
+- Un segment peut résider partiellement en RAM
+
+![segmentationPagination](images/segPag.png)
+
+### protection
+
+Au niveau de la segmenatation:
+- niveau de privilège - rings
+- type d'accès (X,R,W)
+- limite
+- les privilèges d'un code qui s'exécute sont marqués dans le sélecteur CS:
+- CPL = Code Privilege Level (0-3)
+- les privilèges nécessaires pour accéder un segment de données sont dans le descripteur du segment :
+- DPL = Descriptor Privilege Level (0-3)
+- exemples de vérifications
+- privilèges insuffisants (provoque une exception de type general protection fault)
+* code  avec privilège utilisateur 3 (CPL = 3)
+* Données avec un niveau de privilège du noyau 0 (DPL = 0)
+* en général dans les cas CPL > DPL
+
+Dépassement de la limite du segment provoque une exception de type __segmentation fault__

@@ -1,0 +1,447 @@
+Système:
+========
+
+La fin d'un processus:
+----------------------
+
+1. Arrêt normal (volontaire)
+2. Arrêt pour erreur (volontaire)
+3. Arrêt pour erreur fatale (involontaire)
+4. Processus arrêté par un autre processus (involontaire)
+
+##### Arrêt normal:
+
+Arrêt lorsque la tâche est terminée, appel système **exit**.
+
+##### Arrêt pour erreur:
+
+exemple: quand l'utilisateur tente de compiler un fichier qui n'existe pas. Le programme s'arrête purement et simplement.
+
+##### Arrêt pour erreur fatale:
+
+Erreur provoquée par le processus, souvent dû à un bogue dans le programme
+(instruction illégale, référence mémoire inexistente, divisiuon par zéro...).
+
+##### Processus arrêté par un autre processus
+
+Processus qui demande au système d'exploitation d'arrêter un ou des processus. Sous UNIX cet appel est **kill**.
+
+Hiérarchie des processus
+------------------------
+
+Un processus n'a qu'un seul parent et peut avoir zéro, un, deux enfants, ou plus.
+
+Sous UNIX, un processus ainsi que l'ensemble de ses enfants et de ses descendants forment un groupe de processus.
+
+Lorsque l'utilisateur envoie un signal avec le clavier, celui ci est délivré à tous les membres du groupe de processus associé au clavier.
+Générallement, ce sont tous les processus actifs crées dans la fenêtre active. Individuellement, chaque processus peut intercepter le signal, l'ignorer, ou adopter l'action par défaut qui consiste à être arrêté (tué) par le signal.
+
+##### Important:
+
+Sous UNIX ,au démarrage, un processus spécial appelé **init** est présent dans l'image d'amorçage. Lors de son exécution, un shell sera exécuté (si tout va bien) pour accpeter des commandes. ces commandes permetteront de lancer d'autres processus, et ainsi de suite.
+Tous les processus de l'ensemble du système appartiennent à une arborescence unique dont init est la racine!!!
+
+### Les états des processus:
+
+![etats](images/etatsProcessus.png)
+
+
+....
+
+
+....
+
+
+-------------
+
+La communication interprocessus
+===============================
+
+Les processus ont parfois besoin de communiquer entre eux, il doit donc exister une façon structurée de gérer ces **communications interprocessus ou IPC**
+
+##### Trois types de problèmes y sont liés:
+
+1. Comment le premier processus peut il passer des information au second processus
+2. Comment faire pour que deux processus ne produisent pas de conflits lorsqu'ils s'engagent dans des activités critiques.
+>ex: réservation de la dernière place libre dans un avion
+
+3. Comment se psse le séquençage lorsqu'il y a des dépendances
+>ex: A produit des données que B doit imprimer, B doit alors attendre que A ai finit sa tâche avant de pouvoir s'exécuter
+
+Concurrence
+===========
+
+Exemple du spouler d'impression:
+
+Un processus veut imprimer un documents, il entre le nom du doc dans un répertoire de spoule. Le démon d'impression, lui, vérifie régulièrement si un documents doit être imprimer (vérifie qu'un nom de document se trouve dans le répertoire).
+
+Si il existe 2 variables partagées: (accessible par tous les processus)
+1. in => pointe vers la prochaine entrée libre
+2. out =>  pointe vers le prochain fichier à imprimer
+
+Si la **loi de Murphy** s'applique...
+Le processus A veut imprimer, il va lire IN pour connaitre la prochaine entrée libre. Il stocke en local cette valeur et s'en suit une interruption.
+Le processus B prend la main et lis également la valeur de IN (la même que pour A).
+A ce stade, les 2 processus on la même valeur pour prochaine entrée libre.
+B continue à s'exécuter et stocke dans l'entrée libre le nom de son document.
+A reprend la main et stocke son nom de fichier sur la même entrée que B a utilisé précédemment écrasant ainsi le nom du document de B. Le document de B ne sera jamais imprimé car en interne le répertoire de spoule est cohérent, le démon d'impression ne remarquera donc jamais que quelque chose ne va pas.
+
+Les situations où plusieurs processus lisent et écrivent des données partagées et où le résultats dépend de quel élément s'exécute à un moment donnée s'appelle  **conditions de concurrences**.
+
+Situation qui peut se produire lorsque plusieurs processus accèdent en modification à des données partagées (lire, modifier, écrire).
+
+La concurrence est donc un problème qui se pose lors du partage de ressources en mise à jour (RAM, fichier, base de donnée).
+
+Il faut donc éviter les mises à jour concurrentes.
+
+>Une opération de mise  à jour doit se terminer avant qu'une autre ne commence.
+Le code de mise à jour doit s'exécuter de manière exclusive!!!!
+
+
+Sections critiques:
+===================
+
+**L'exclusion mutuelle** est une méthode qui permet de s'assurer que si un processus utilise une variable ou un fichier partagé, les autres processus seront exclus de la même activités.
+
+La partie du programme à partir de laquelle on accède à la mémoire partagée (accède en mise à jour à une ressource partagée) se nomme **région critique**, ou **section critique**.
+
+>Si on évite que deux processus se trouvent simultanément dans leurs sections critiques, on évite les conditions de concurrence.
+
+Cela ne suffisant pas, à assurer que des processus parallèles coopèrent de façon approprié et utilisent efficacement les données partagées!!!
+
+### Quatres conditions doivent être réunies
+
+1. **Deux processus ne doivent pas se retrouver simultanément dans leurs sections critiques**.
+2. **Il ne faut pas faire de supposition quand à la vitesse ou au nombre de processeurs mis en oeuvre**.
+3. **Aucun processus s'exécutant hors de sa section critique ne doit bloquer d'autres processus**.
+4. **Aucun processus ne doit attendre indéfiniment pour entrer dans sa section critique**.
+
+![section critique](images/sectionCritique.png)
+
+### Les "non solutions"
+
+1. **Désactivation des interruptions**
+
+Dans un système monoprocesseur, la solution la plus simple semble être que chaque processus désactive toutes les interruptions juste après son entrée dans sa section critique, et qu'ils les réactivent juste après les avoir quittées.
+
+Cependant, il n'est pas judicieux de donner aux processus utilisateur le pouvoir de désactiver les interruptions. Car si il ne les réactivait pas, cela sonnerait le glas pour tout le système.
+
+>De plus, dans le cas d'un système multiprocesseur, la désactivation des interruptions n'affecte que le processeur qui a exécuté l'instruction disable. Les autres continuent de s'exécuter et peuvent accéder à la mémoire partagée.
+
+La désactivation des interruptions est souvent intérressante au sein du système d'exploitation lui-même, mais elle n'est pas appropriée en tant que mécanisme d'exclusion mutuelle pour les processus utilisateur.
+
+**CLI - STI**
+
+CLI: clean interrupt => indique qu'il ne peut y avoir d'interruption jusqu'à l'instruction STI
+STI: set interruption
+
+concrètement(résume le principe entier!!!!):
+
+### CLI => section critique => STI
+
+Le problème est qu'il risque d'y avoir une boucle infinie dans la section critique car le process pourrait rester à jamais ininterruptible.
+
+>Ce n'est donc pas une solution pour les process utilisateurs
+
+2. **Variables de verrou** (utilisation d'une variable partagée)
+
+C'est une solution logicielle qui consisterait à utiliser une variable unique, partagée (verrou ou lock) et dont la valeur initiale est à 0.
+Lorsqu'un processus veut entrer sa section critique, il commence par tester le verrou. Si le verrou est à 0, il le met à 1 et entre en section critique. Et si le verrou est à 1, il attend qu'il passe à 0. 1 voulant donc dire qu'un processus est présent dans la section critique et 0 qu'aucun processus ne se trouve dans la section critique.
+
+![verrou](images/verrou.png)
+
+>Même problème que pour le spouler d'impression!!!
+Si un processus A lis le verrou à 0 et qu'avant de le mettre à 1 un autre processus prend la main et lisant le verrou à 0 le met à 1, lorsque le processus A reprend la main il met le verrou précédement lus à 1 et les deux processus seront dans leurs sections critiques simultanément.
+
+3. **TSL** (**test and set lock**)
+
+rem: cette solution solicite l'aide du matériel
+
+TSL = Test and Set lock
+
+    TSL RX, LOCK
+
+Instruction qui va lire le contenu du mot mémoire **lock** dans le registre RX, puis stock une valeur différente de 0 à l'adresse mémoire lock.
+
+### TSL est une instruction permettant de tester et d'écrire en mémoire de façon atomique
+
+>Les opérations qui consiste à lire le mot et à y stocker une valeur sont absolument indivisibles; aucun autre processeur ne peut accéder au mot mémoire tant que l'instruction TSL n'est pas terminée. Car le processeur exécutant l'instruction TSL verrouille le bus mémoire pour interdire l'accès au mot tant que l'instruction n'est pas finie.
+
+Avantage donc par rapport à la désactivation des interuptions car ici même un autre processeur ne peut accéder à la variable.
+
+Il faut cependant un matériel spécifique: une ligne de bus qui indique que le bus à été vérouillé par un processeur et qu'il n'est donc pas disponible pour les autres.
+
+Ci après, une routine qui utilise l'instruction TSL pour empêcher 2 processus d'entrer simultanément dans leurs sections critiques.
+
+![TSL](images/tsl1.png)
+
+Cette routine est composée de 4 instructions:
+
+1. Copier l'ancienne valeur de lock dans le registre, pui positionner lock à 1 (pour bloquer d'office).
+2. L'ancienne valeur de lock est comparée à 0.
+3. Si elle est différente de 0, c'est que lock était déjà positionnée, le programme retourne donc au début et refait le test.
+
+>Lorsque le processus actuellement en section critique en aura terminé, lock repassera à 0.
+
+>rem: pour supprimer le verrou, il suffit de stocker 0 dans la variable lock.
+
+Problème:
+Un process ayant une plus haute priorité pourrait rester en attente.
+
+4. Retour à l'appelant qui peut dès lors rentrer en section critique
+
+Il est important de constater que si un processus "triche" et n'appelle pas enter_region et leave_region au bon moment, l'exclusion mutuelle échoue!
+
+Il existe une autre instruction **XCHG**, qui permet de permuter de façon atomique les contenus de deux emplacements (par exemple un mot mémoire et un registre).
+Tous les Intel X86 utilisent cette instruction XCHG.
+
+![TSL](images/tsl2.png)
+
+4. **Alternance stricte**
+
+Le processus 0 inspecte la valeur de turn, si celle ci est à 0, si elle est à 0 il entre en section critique. Le processus 1, constate que la valeur de turn est à 0 et entre donc dans une boucle d'attente (un verrou assorti d'une boucle d'attente active s'appelle **spin lock**).
+Et attend donc que turn passe à 1.
+
+rem: Le test d'une variable se poursuivant jusqu'à l'apparition d'une valeur attendue se nomme **attente active** ou **busy waiting**
+
+![alternance stricte](images/alternance.png)
+
+idem vu au cours
+
+![alternance stricte](images/alternance2.png)
+
+Lorsque le processus 0 quitte sa section critique il positionne turn à 1 et le processus 1 entre dans sa section critique et lorsqu'il a finit modifie turn. Turn est donc à 0 et les 2 processus sont hors de leur section critique.
+
+Le processus 0 rentre en section critique (qu'il termine rapidement), turn passe à 1. Le processus 1 est dans sa routine. Et maintenant le processus 0 veut retourner dans sa section critique mais ne peut pas car turn est à 1.
+
+Le processus 0 est alors bloqué par un processus, hors de sa section critique!!!
+**En désaccord avec la 3ème condition**.
+
+>Dans les faits, cette solutions implique que deux processus alternent strictement leurs entrées en section critique. Comparé au cas du spouler d'impression, aucun des processus ne pourrait mettre en file d'attente 2 documents à la suite!!!
+
+Problème:
+
+Il y a un ordre à respecter.
+Il y a une attente forcée.
+
+Producteur - consomateur:
+-------------------------
+
+Problème du **producteur / consomateur** (ou **tampon délimité**, ou **bounded-buffer**)
+
+REM: le tampon est un tableau
+
+
+Deux processus partagent un tampon commun de taille fixe.
+L'un d'eux, le producteur, place des informations dans le tampon; l'autre, le consomateur,
+les récupère.
+
+Les problèmes se posent quand le producteur souhaite placer un nouvel élément dans le tampon alors que ce dernier est plein. La solution pour le producteur est de s'endormir et d'être réveillé lorsque le consommateur aura enlevé un ou plusieurs éléments du tampon.
+
+De même si le consommateur veut récupérer un élément dans le tampon et que celui-ci est vide, il va s'endormir jusqu'à ce que le producteur ai placé qq chose dans le tampon (opération qui va le réveiller).
+
+Approche simple mais même conditions de concurrence que le spoul d'impression.
+Pour connaitre le nombre d'élément dans le tampon, il nous faut une variable count.
+Si le nombre max d'élément que peut contenir le tampon est N.
+
+**Le producteur** commence par tester count , car si count = N alors le producteur entre en sommeil et dans le cas contraire il ajoute un élément au tampon et incrémente count.
+
+**Le consomateur** commence par tester count, si count est à zéro, il entre en sommeil. Si count est différent alors le code du consommateur récupère un élément du tampon et décrémente count.
+
+Attention: chacun des processus effectue un test pour déterminer s'il faut éveiller l'autre.
+
+Problème: il y a un problème lorsqu'un signal de WAKEUP est envoyé à un processus qui ne dort pas (le signal de WAKEUP est alors perdu), cela risque d'(aboutir à la situation où le producteur et le consommateur s'ont tous deux endormis).
+
+La solution consiste à ajouter un bit d'attente d'éveil (wakeup waiting bit).
+Lorsqu'un wakeup est envoyé à un processus non encore en sommeil, le bit est positionné. Plus tard, lorsque le processus veut s'endormir il contrôle ce bit le remet à zéro et reste éveillé.
+
+### Le lien avec les sémaphores:
+
+Les ressources sont:
+
+* les cases pleines, pour le consommateur.
+* les cases vides, pour le producteur.
+
+Les variables partagées sont:
+
+* un tableau circulaire de n cases.
+* la queue
+* la têtable
+
+Le consommateur veut les ressources (cases pleines) et le producteur veut les ressources (cases vides).
+
+Les Sémaphores:
+---------------
+
+**Objectif**:
+
+Résoudre les problèmes de concurrence
+Et on utilise des sémaphores pour accéder à des ressources non partageables.
+
+**Compteur protégé par 3 opérations indivisibles**
+
+1. INIT initialise le compteur lors de la création du sémaphore
+2. DOWN: test la valeur du compteur et éventuellement bloque le processus qui effectue le test.
+    - Si le test est réussi -> décrémentation de la valeur du compteur (alors le processus continue)
+    - sinon bloque...
+
+REM: Donc opération bloquante si la valeur du compteur est à zéro
+
+3. UP: elle va incrémenter le compteur et si un processus est bloqué (au moins un) va réveillé le premier processus bloqué (le plus ancien).
+
+### DOWN ET UP sont des appels système, le système aura la main à la fin de l'appel système.
+
+Le compteur représente le nombre de ressources disponibles partagé et peut également représenté le nombre de processus en attente d'une ressource si le compteur garde en mémoire des valeurs négatives.
+r =< 0, aucune ressource disponible et |r| processus bloqués en attente dans une file.
+
+Concrètement:
+
+Un sémaphore est une variable.
+
+Un **sémaphore** est un compteur, initialisé à une valeur donnée, et un système de blocage qui va permettre de suspendre des processus.
+
+L'appel système DOWN demande une ressource. Le sémaphore est décrémenté.
+
+L'appel système UP restitue une ressource. Le sémaphore est incrémenté. Et si il existe des processus bloqués en attente, l'état du premier de la file est remis à prêt.
+
+Avantage:
+
+En cas de ressource indisponible, le processus sera bloqué donc pas d'attente active.
+
+Il y a 3 types de sémaphores:
+
+1. Privé (ou Mutex, ou Binaire) -> compteur = 1
+2. Bloquants -> comtpeur = 0
+3. Banalisés -> compteur = N (N > 1)
+
+Fonctionnement général du sémaphore:
+
+1. Le premier passe
+2. le(s) suivant(s) se bloque(nt)
+3. Chaque sortant libère le plus ancien bloqué
+
+En pratique:
+
+sem r=1;              // mon sémaphore
+down(r)               // on prend la ressource
+section critique      // on utilise la ressource
+Up(r);                //on rend la ressource
+
+IPC systeme V:
+--------------
+
+Utilisation d'une **clé pour partager une ressource**.
+Cette clé est fournie par le noyau.
+Cette clé permet d'obtenir un identifiant unique.
+
+REM: Utilisation de données persistantes. Cela veut dire que lorsque le process meurt, les sémaphores qu'il utilisait restent en mémoire.
+Il faudra les supprimer explicitement avec **IPC_RMID**
+
+Seul le créateur (le propriétaire du sémaphore) ou root peuvent supprimer le sémaphore.
+
+Type de ressource:
+
+* mémoire (shm)
+* sémaphore (sem)
+* file de message (msg)
+
+-------
+
+
+Les primitives pour gérer la mémoire partagée sont :
+
+shmid = **shmget(key,size,shmflags)**
+Permet la création d'une zone mémoire partagée, ou l'accès à une zone déjà existante. Les drapeaux permettent de spécifier les modalités d'ouverture, et notamment les droits de lecture et d'écriture.
+
+shmget - Allouer un segment de mémoire partagée System V
+
+key: clé connue par plusieurs processus
+size: taille en bytes
+shmflags: les droits d'accès
+
+La valeur de retour correspond à l'identifiant de la mémoire partagée souhaitée.
+
+Quand on veut utiliser plusieurs sémaphores entre différents process, il faut leur communiquer l'identifiant du sémaphore.
+
+>shmget()  renvoie l'identifiant du segment de mémoire partagée System V
+     associé à la valeur de l'argument key. Un nouveau segment  mémoire,  de
+     taille  size  arrondie  au multiple supérieur de PAGE_SIZE, est créé si
+     key a la valeur IPC_PRIVATE ou si aucun  segment  de  mémoire  partagée
+     n'est associé à key, et IPC_CREAT est présent dans shmflg.
+
+>     Si shmflg contient à la fois les attributs IPC_CREAT et IPC_EXCL, et si
+     un segment de mémoire partagée est déjà associé à key, shmget()  échoue
+     avec  le  code  d'erreur  EEXIST. Ceci est similaire au comportement de
+     open(2) avec la combinaison O_CREAT | O_EXCL.
+
+>     shmflg est composé de :
+
+>     IPC_CREAT   Créer un  nouveau  segment.  Sinon  shmget()  recherche  le
+                 segment  associé  à  key  et  vérifie  que  l'appelant a la
+                 permission d'y accéder.
+
+>     IPC_EXCL    Utilisé avec IPC_CREAT pour garantir l'échec si le  segment
+                 existe déjà.
+
+>     mode d'accès
+                 (les   9 bits   de   poids  faibles)  Permissions  pour  le
+                 propriétaire, le groupe et les autres. Ces bits ont le même
+                 format  et  la  même  signification  que l'argument mode de
+                 open(2). Actuellement la permission d'exécution  n'est  pas
+                 utilisée par le système.
+
+>VALEUR RENVOYÉE
+En  cas  de  succès,  un  identifiant  de  mémoire  partagée valide est
+renvoyé. En cas d'erreur, -1 est renvoyé  et  errno  contient  le  code
+d'erreur.
+
+adr = **shmat(shmid,adr,flags)**
+Permet d'attacher la mémoire référencée à l'adresse virtuelle spécifiée en argument. Le résultat est l'adresse à laquelle le système a effectivement réalisé l'attachement (elle peut être différente de l'argument).
+
+void * shmat(int shmid, const void * shmaddr, int shmflg);
+
+>DESCRIPTION
+       La  fonction  shmat()  attache  le segment de mémoire partagée System V
+       identifié par shmid  au  segment  de  données  du  processus  appelant.
+       L'adresse  d'attachement  est  indiquée  par  shmaddr avec les critères
+       suivants :
+
+>       Si shmaddr vaut NULL, le système essaye de trouver  une  adresse  libre
+       pour attacher le segment.
+
+>       Si  shmaddr  n'est  pas  NULL  et  si  SHM_RND est indiqué dans shmflg,
+       l'attachement a lieu à l'adresse shmaddr arrondie au multiple inférieur
+       de  SHMLBA.  Sinon shmaddr doit être alignée sur une frontière de page,
+       où l'attachement a lieu.
+
+
+**int shmdt(adr)**
+Détachement d'une zone partagée de l'espace virtuel du processus.
+
+>La  fonction  shmdt()  détache  le  segment de mémoire partagée situé à
+  l'adresse indiquée par shmaddr.  Le  segment  doit  être  effectivement
+  attaché, et l'adresse shmaddr doit être celle renvoyée précédemment par
+  shmat().
+
+>  Quand shmdt() réussit, les membres de la structure shmid_ds associée au
+  segment de mémoire partagée sont mis à jour ainsi :
+
+>         shm_dtime correspond à l'heure actuelle.
+
+>         shm_lpid contient le PID de l'appelant.
+
+>         shm_nattch  est  décrémenté  de  1.  S'il  devient nul, et si le
+         segment  est  marqué  pour  destruction,  il  est  effectivement
+         détruit.
+
+>  Après un fork(2) le fils hérite des segments de mémoire partagée.
+
+>  Après  un execve(2) tous les segments de mémoire partagée sont détachés
+  (pas détruits).
+
+>  Lors d'un exit(2) tous les segments de mémoire partagée sont  détachés
+  (pas détruits).
+
+
+**int shmctl(shmid,command,result)**
+Permet de consulter ou de modifier les caractéristiques d'un segment mémoire ainsi que de le supprimer. Il est notamment possible de demander son verrouillage en mémoire centrale.
